@@ -1,0 +1,9 @@
+[submodule "lib/google-cloud-datastore"]
+	path = lib/google-cloud-datastore
+	url = https://github.com/GoogleCloudPlatform/google-cloud-datastore.git
+[submodule "lib/google_appengine"]
+	path = lib/google_appengine
+	url = https://github.com/Tagtoo/GoogleAppEngine.git
+[submodule "lib/gcloud-python"]
+	path = lib/gcloud-python
+	url = https://github.com/GoogleCloudPlatform/gcloud-python.git
