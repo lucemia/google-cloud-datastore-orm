@@ -22,10 +22,12 @@ import google.appengine.datastore
 google.appengine.datastore.datastore_rpc = datastore_rpc
 from google.appengine.ext import db
 
-class Test(db.Model):
-    test_int = db.IntegerProperty()
-    test_string = db.TextProperty()
+class AdAction(db.Model):
+    #test_int = db.IntegerProperty()
+    #test_string = db.TextProperty()
+    action_pattern = db.StringProperty()
+    advertiser = db.IntegerProperty()
 
-t = Test.get_by_key_name('test')
-
+t = AdAction.get_by_id(2)
+print t
 # print sys.modules.keys()
