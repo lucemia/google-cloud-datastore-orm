@@ -23,17 +23,21 @@ except:
 os.environ["APPLICATION_ID"] = dataset_id
 stub = datastore_clouddatastore_stub.DatastoreCloudDatastoreStub(dataset_id, email, key_path)
 stub_map.RegisterStub("datastore_v3", stub)
-apiproxy_stub_map.apiproxy = stub_map
 
+from google.appengine.api.memcache import memcache_stub
+memcache_stub = memcache_stub.MemcacheServiceStub()
+stub_map.RegisterStub("memcache", memcache_stub)
+
+apiproxy_stub_map.apiproxy = stub_map
 
 from google.appengine.ext import db, ndb
 
 
-class AdAction(db.Model):
+class AdAction(ndb.Model):
     #test_int = db.IntegerProperty()
     #test_string = db.TextProperty()
-    action_pattern = db.StringProperty()
-    advertiser = db.IntegerProperty()
+    action_pattern = ndb.StringProperty()
+    advertiser = ndb.IntegerProperty()
 
 t = AdAction.get_by_id(2)
 print t
