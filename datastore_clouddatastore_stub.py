@@ -12,6 +12,7 @@ from google.appengine.datastore import sortable_pb_encoder
 from google.appengine.runtime import apiproxy_errors
 from google.appengine.datastore import entity_pb
 from oauth2client import client
+from googledatastore import datastore_v1_pb2 as datastore_pb
 
 import googledatastore
 converter = converter.Converter()
@@ -95,12 +96,14 @@ class DatastoreCloudDatastoreStub(datastore_stub_util.BaseDatastore,
         return dict((datastore_types.ReferenceToKeyValue(entity.key()), entity)
                   for entity in v3_entities)
 
-  def _Put(self, entity, insert):
-    pass
-    # connection = self._GetConnection()
-    # entity = datastore_stub_util.StoreEntity(entity)
+  def _Put(self, v3_entity, insert):
+    connection = self._GetConnection()
+    v3_entity = datastore_stub_util.StoreEntity(v3_entity)
+    req = googledatastore.CommitRequest()
 
-    # req = googledatastore.CommitRequest()
-    # req.mode = googledatastore.CommitRequest.NON_TRANSACTIONAL
-    # req.mutation.update.extend([entity])
+    req.mode = datastore_pb.CommitRequest.NON_TRANSACTIONAL
+    v1_entity = req.mutation.upsert.add()
+    converter.v3_to_v1_entity(v3_entity, v1_entity)
+    v1_entity.key.partition_id.Clear()
+    resp = connection.commit(req)
 

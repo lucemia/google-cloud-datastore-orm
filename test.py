@@ -28,14 +28,13 @@ apiproxy_stub_map.apiproxy = stub_map
 
 from google.appengine.ext import db, ndb
 
-class Test(db.Model):
-    test_int = db.IntegerProperty()
-    test_str = db.StringProperty()
 
-t = Test(key_name="test")
-t.test_int = 10
-t.test_str = "test"
+class AdAction(db.Model):
+    #test_int = db.IntegerProperty()
+    #test_string = db.TextProperty()
+    action_pattern = db.StringProperty()
+    advertiser = db.IntegerProperty()
+
+t = AdAction.get_by_id(2)
+print t
 t.put()
-
-
-t = Test.get_by_key_name("test")

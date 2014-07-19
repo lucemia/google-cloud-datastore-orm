@@ -1,4 +1,5 @@
 from google.appengine.datastore import datastore_pbs
+from google.appengine.datastore import entity_pb
 
 # # if using gcloud-python, the meaning will loss
 # class Converter(datastore_pbs._EntityConverter):
@@ -185,6 +186,22 @@ class Converter(datastore_pbs._EntityConverter):
             self.v1_to_v3_entity(entity_result_v1.entity, v3_entity.mutable_entity())
 
 
+    def v3_to_v1_key(self, v3_ref, v1_key):
+        v1_key.Clear()
+        if not v3_ref.app():
+            return
+        v1_key.partition_id.dataset_id = v3_ref.app()
+        if v3_ref.name_space():
+            v1_key.partition_id.namespace = v3_ref.name_space()
+        for v3_element in v3_ref.path().element_list():
+            v1_element = v1_key.path_element.add()
+            v1_element.kind = v3_element.type()
+            if v3_element.has_id():
+                v1_element.id = v3_element.id()
+            if v3_element.has_name():
+                v1_element.name = v3_element.name()
+
+
     def v3_entity_ref_to_v1_key(self, v3_ref, v1_key):
         v1_key.Clear()
 
@@ -250,6 +267,68 @@ class Converter(datastore_pbs._EntityConverter):
         else:
             self.__v1_to_v3_property(property_name, is_multi, v4_value, v3_entity.add_raw_property())
 
+    def __is_v3_property_value_union_valid(self, v3_property_value):
+        """Returns True if the v3 PropertyValue's union is valid."""
+        num_sub_values = (v3_property_value.has_booleanvalue()
+                      + v3_property_value.has_int64value()
+                      + v3_property_value.has_doublevalue()
+                      + v3_property_value.has_referencevalue()
+                      + v3_property_value.has_stringvalue()
+                      + v3_property_value.has_pointvalue()
+                      + v3_property_value.has_uservalue())
+        return num_sub_values <= 1
+
+    def __is_v3_property_value_meaning_valid(self, v3_property_value, v3_meaning):
+        """Returns True if the v3 PropertyValue's type value matches its meaning."""
+        def ReturnTrue():
+            return True
+        def HasStringValue():
+            return v3_property_value.has_stringvalue()
+        def HasInt64Value():
+            return v3_property_value.has_int64value()
+        def HasPointValue():
+            return v3_property_value.has_pointvalue()
+        def ReturnFalse():
+            return False
+        value_checkers = {
+            entity_pb.Property.NO_MEANING: ReturnTrue,
+            entity_pb.Property.INDEX_VALUE: ReturnTrue,
+            entity_pb.Property.BLOB: HasStringValue,
+            entity_pb.Property.TEXT: HasStringValue,
+            entity_pb.Property.BYTESTRING: HasStringValue,
+            entity_pb.Property.ATOM_CATEGORY: HasStringValue,
+            entity_pb.Property.ATOM_LINK: HasStringValue,
+            entity_pb.Property.ATOM_TITLE: HasStringValue,
+            entity_pb.Property.ATOM_CONTENT: HasStringValue,
+            entity_pb.Property.ATOM_SUMMARY: HasStringValue,
+            entity_pb.Property.ATOM_AUTHOR: HasStringValue,
+            entity_pb.Property.GD_EMAIL: HasStringValue,
+            entity_pb.Property.GD_IM: HasStringValue,
+            entity_pb.Property.GD_PHONENUMBER: HasStringValue,
+            entity_pb.Property.GD_POSTALADDRESS: HasStringValue,
+            entity_pb.Property.BLOBKEY: HasStringValue,
+            entity_pb.Property.ENTITY_PROTO: HasStringValue,
+            entity_pb.Property.GD_WHEN: HasInt64Value,
+            entity_pb.Property.GD_RATING: HasInt64Value,
+            entity_pb.Property.GEORSS_POINT: HasPointValue,
+            }
+        default = ReturnFalse
+        return value_checkers.get(v3_meaning, default)()
+
+    def __v3_reference_has_id_or_name(self, v3_ref):
+        """Determines if a v3 Reference specifies an ID or name.
+
+        Args:
+          v3_ref: an entity_pb.Reference
+
+        Returns:
+          boolean: True if the last path element specifies an ID or name.
+        """
+        path = v3_ref.path()
+        assert path.element_size() >= 1
+        last_element = path.element(path.element_size() - 1)
+        return last_element.has_id() or last_element.has_name()
+
     def v1_to_v3_reference(self, v1_key, v3_ref):
         v3_ref.Clear()
         if v1_key.HasField('partition_id'):
@@ -264,6 +343,125 @@ class Converter(datastore_pbs._EntityConverter):
                 v3_element.set_id(v1_element.id)
             if v1_element.HasField('name'):
                 v3_element.set_name(str(v1_element.name))
+
+
+    def v3_property_to_v1_value(self, v3_property, indexed, v1_value):
+        v1_value.Clear()
+        # TODO
+        v3_property_value = v3_property.value()
+        v3_meaning = v3_property.meaning()
+        v3_uri_meaning = None
+        if v3_property.meaning_uri():
+            v3_uri_meaning = v3_property.meaning_uri()
+
+        if not self.__is_v3_property_value_union_valid(v3_property_value):
+            v3_meaning = None
+            v3_uri_meaning = None
+        elif v3_meaning == entity_pb.Property.NO_MEANING:
+            v3_meaning = None
+        elif not self.__is_v3_property_value_meaning_valid(v3_property_value, v3_meaning):
+            v3_meaning = None
+
+        is_zlib_value = False
+        if v3_uri_meaning:
+            if v3_uri_meaning == datastore_pbs.URI_MEANING_ZLIB:
+                if v3_property_value.has_stringvalue():
+                    is_zlib_value = True
+                    if v3_meaning != entity_pb.Property.BLOB:
+                        v3_meaning = entity_pb.Property.BLOB
+                else:
+                    pass
+            else:
+                pass
+
+        if v3_property_value.has_booleanvalue():
+            v1_value.boolean_value = v3_property_value.booleanvalue()
+        elif v3_property_value.has_int64value():
+            if v3_meaning == entity_pb.Property.GD_WHEN:
+                v1_value.timestamp_microseconds_value = v3_property_value.int64value()
+                v3_meaning = None
+            else:
+                v1_value.integer_value = v3_property_value.int64value()
+        elif v3_property_value.has_doublevalue():
+            v1_value.double_value = v3_property_value.double_value()
+        elif v3_property_value.has_referencevalue():
+            v3_ref = entity_pb.Reference()
+            self.__v3_reference_value_to_v3_reference(v3_property_value.referencevalue(), v3_ref)
+            self.v3_to_v1_key(v3_ref, v1_value.key)
+        elif v3_property_value.has_stringvalue():
+            if v3_meaning == entity_pb.Property.ENTITY_PROTO:
+                serialized_entity_v3 = v3_property_value.stringvalue()
+                v3_entity = entity_pb.EntityProto()
+
+                v3_entity.ParsePartialFromString(serialized_entity_v3)
+                self.v3_to_v1_entity(v3_entity, v1_value.entity_value)
+                v3_meaning = None
+            elif (v3_meaning == entity_pb.Property.BLOB or v3_meaning == entity_pb.Property.BYTESTRING):
+                v1_value.blob_value = v3_property_value.stringvalue()
+
+                if indexed or v3_meaning == entity_pb.Property.BLOB:
+                    v3_meaning = None
+            else:
+                string_value = v3_property_value.stringvalue()
+                if datastore_pbs.is_valid_utf8(string_value):
+                    if v3_meaning == entity_pb.Property.BLOBKEY:
+                        v1_value.blob_key_value = string_value
+                        v3_meaning= None
+                    else:
+                        v1_value.string_value = string_value
+                else:
+                    v1_value.blob_value = string_value
+
+                    if v3_meaning != entity_pb.Property.INDEX_VALUE:
+                        v3_meaning = None
+        elif v3_property_value.has_pointvalue():
+            self.__v3_to_v1_point_entity(v3_property_value.pointvalue(), v1_value.entity_value)
+            if v3_meaning != entity_pb.Property.GEORESS_POINT:
+                v1_value.meaning = datastore_pbs.MEANING_PREDEFINED_ENTITY_POINT
+                v3_meaning = None
+        elif v3_property_value.has_uservalue():
+            self.__v3_to_v1_user_entity(v3_property_value.uservalue(), v1_value.entity_value)
+            v1_value.meaning = datastore_pbs.MEANING_PREDEFINED_ENTITY_USER
+        else:
+            pass
+
+        if is_zlib_value:
+            v1_value.meaning = datastore_pbs.MEANING_ZLIB
+        elif v3_meaning:
+            v1_value.meaning = v3_meaning
+
+        if indexed != v1_value.indexed:
+            v1_value.indexed = indexed
+
+    def __add_v1_property_to_entity(self, v1_entity, property_map, v3_property, indexed):
+        property_name = v3_property.name()
+        if property_name.startswith("__"):
+            return
+        if property_name in property_map:
+            v1_property = property_map[property_name]
+        else:
+            v1_property = v1_entity.property.add()
+            v1_property.name = property_name
+            property_map[property_name] = v1_property
+        if v3_property.multiple():
+            self.v3_property_to_v1_value(v3_property, indexed, v1_property.value.list_value.add())
+        else:
+            self.v3_property_to_v1_value(v3_property, indexed, v1_property.value)
+
+
+    def v3_to_v1_entity(self, v3_entity, v1_entity):
+        v1_entity.Clear()
+        self.v3_to_v1_key(v3_entity.key(), v1_entity.key)
+        if not v3_entity.key().has_app():
+            v1_entity.key.Clear()
+
+        v1_properties = {}
+        for v3_property in v3_entity.property_list():
+            self.__add_v1_property_to_entity(v1_entity, v1_properties, v3_property, True)
+
+        for v3_property in v3_entity.raw_property_list():
+            self.__add_v1_property_to_entity(v1_entity, v1_properties, v3_property, False)
+
 
     def v1_to_v3_entity(self, v1_entity, v3_entity):
         v3_entity.Clear()
