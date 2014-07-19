@@ -214,7 +214,7 @@ class BaseConnection(object):
 
   @_positional(1)
   def __init__(self, adapter=None, config=None, _api_version='_DATASTORE_V3'):
-    pass
+    self.__adapter = adapter
 
   @property
   def adapter(self):
@@ -225,6 +225,13 @@ class BaseConnection(object):
     return self.__config
 
   def async_get(self, config, keys, local_extra_hook):
+
+    import patch
+    from google.appengine.datastore import entity_pb
+
+    converter = patch.Converter()
+
+
     req = datastore.LookupRequest()
     for key in keys:
       key_pb = datastore.Key()
@@ -240,7 +247,13 @@ class BaseConnection(object):
     if not resp.found:
       raise
     else:
-      return FakeAsync([k.entity for k in resp.found])
+      entity = entity_pb.EntityProto()
+      # import pdb; pdb.set_trace()
+      converter.v1_to_v3_entity(resp.found[0].entity, entity)
+      entity.set_kind(key.kind())
+      entity = self.adapter.pb_to_entity(entity)
+
+      return local_extra_hook([FakeAsync(entity)])
 
 class Connection(BaseConnection):
   pass

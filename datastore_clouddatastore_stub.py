@@ -92,7 +92,7 @@ class DatastoreCloudDatastoreStub(datastore_stub_util.BaseDatastore,
           v3_entity.mutable_key().set_name_space(entity_group.name_space())
           v3_entities.append(v3_entity)
 
-      return dict((datastore_types.ReferenceToKeyValue(entity.key()), entity)
+        return dict((datastore_types.ReferenceToKeyValue(entity.key()), entity)
                   for entity in v3_entities)
 
   def _Put(self, entity, insert):

@@ -1,33 +1,41 @@
-import os
-import sys
-
-def include_sys(paths):
-    for p in paths:
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), p))
-
-include_sys([
-    'lib/gcloud-python',
-    'lib/google-cloud-datastore/python',
-    'lib/google_appengine',
-])
-
+import os, sys
 import google
+
+# inject protobuf
 google.__path__.append(os.path.join('lib', 'google'))
 
-import googledatastore as datastore
-datastore.set_options(dataset="tagtooadex2")
-os.environ["APPLICATION_ID"] = "tagtooadex2"
-import datastore_rpc
-import google.appengine.datastore
-google.appengine.datastore.datastore_rpc = datastore_rpc
-from google.appengine.ext import db
 
-class AdAction(db.Model):
-    #test_int = db.IntegerProperty()
-    #test_string = db.TextProperty()
-    action_pattern = db.StringProperty()
-    advertiser = db.IntegerProperty()
+# setup clouddatastore_stub
+import datastore_clouddatastore_stub
+from google.appengine.api import apiproxy_stub_map
+stub_map = apiproxy_stub_map.APIProxyStubMap()
 
-t = AdAction.get_by_id(2)
-print t
-# print sys.modules.keys()
+
+dataset_id = "YOUR_DATASET_ID"
+email  = "YOUR_SERVICE_ACCOUNT"
+key_path = "YOUR_KEY_PATH"
+
+try:
+    from local_setting import *
+except:
+    pass
+
+os.environ["APPLICATION_ID"] = dataset_id
+stub = datastore_clouddatastore_stub.DatastoreCloudDatastoreStub(dataset_id, email, key_path)
+stub_map.RegisterStub("datastore_v3", stub)
+apiproxy_stub_map.apiproxy = stub_map
+
+
+from google.appengine.ext import db, ndb
+
+class Test(db.Model):
+    test_int = db.IntegerProperty()
+    test_str = db.StringProperty()
+
+t = Test(key_name="test")
+t.test_int = 10
+t.test_str = "test"
+t.put()
+
+
+t = Test.get_by_key_name("test")
