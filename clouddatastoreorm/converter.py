@@ -265,7 +265,7 @@ class Converter(datastore_pbs._EntityConverter):
         if v1_value.indexed:
             self.__v1_to_v3_property(property_name, is_multi, v1_value, v3_entity.add_property())
         else:
-            self.__v1_to_v3_property(property_name, is_multi, v4_value, v3_entity.add_raw_property())
+            self.__v1_to_v3_property(property_name, is_multi, v1_value, v3_entity.add_raw_property())
 
     def __is_v3_property_value_union_valid(self, v3_property_value):
         """Returns True if the v3 PropertyValue's union is valid."""
@@ -405,10 +405,10 @@ class Converter(datastore_pbs._EntityConverter):
                 string_value = v3_property_value.stringvalue()
                 if datastore_pbs.is_valid_utf8(string_value):
                     if v3_meaning == entity_pb.Property.BLOBKEY:
-                        v1_value.blob_key_value = string_value
+                        v1_value.blob_key_value = unicode(string_value, 'utf8')
                         v3_meaning= None
                     else:
-                        v1_value.string_value = string_value
+                        v1_value.string_value = unicode(string_value, 'utf8')
                 else:
                     v1_value.blob_value = string_value
 

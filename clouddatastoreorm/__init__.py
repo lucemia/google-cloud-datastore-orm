@@ -10,4 +10,11 @@ def connect(dataset_id, email, key_path):
     os.environ["APPLICATION_ID"] = dataset_id
     stub = datastore_clouddatastore_stub.DatastoreCloudDatastoreStub(dataset_id, email, key_path)
     stub_map.RegisterStub("datastore_v3", stub)
+
+    from google.appengine.api.memcache import memcache_stub
+    memcache_stub = memcache_stub.MemcacheServiceStub()
+    stub_map.RegisterStub("memcache", memcache_stub)
+
+
     apiproxy_stub_map.apiproxy = stub_map
+
