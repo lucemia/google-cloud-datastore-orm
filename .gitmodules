@@ -2,5 +2,5 @@
 	path = lib/google-cloud-datastore
 	url = https://github.com/GoogleCloudPlatform/google-cloud-datastore.git
 [submodule "lib/google_appengine"]
-    path = lib/google_appengine
+	path = clouddatastoreorm/lib/google_appengine
     url = https://github.com/Tagtoo/GoogleAppEngine.git
