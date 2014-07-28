@@ -107,3 +107,15 @@ class DatastoreCloudDatastoreStub(datastore_stub_util.BaseDatastore,
     v1_entity.key.partition_id.Clear()
     resp = connection.commit(req)
 
+  def _Delete(self, v3_key):
+    connection = self._GetConnection()
+    req = googledatastore.CommitRequest()
+
+    req.mode = datastore_pb.CommitRequest.NON_TRANSACTIONAL
+    v1_key = req.mutation.delete.add()
+    converter.v3_to_v1_key(v3_key, v1_key)
+    v1_key.partition_id.Clear()
+
+    resp = connection.commit(req)
+
+
