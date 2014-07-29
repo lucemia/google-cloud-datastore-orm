@@ -96,6 +96,8 @@ class DatastoreCloudDatastoreStub(datastore_stub_util.BaseDatastore,
         return dict((datastore_types.ReferenceToKeyValue(entity.key()), entity)
                   for entity in v3_entities)
 
+    return {}
+
   def _Put(self, v3_entity, insert):
     connection = self._GetConnection()
     v3_entity = datastore_stub_util.StoreEntity(v3_entity)
